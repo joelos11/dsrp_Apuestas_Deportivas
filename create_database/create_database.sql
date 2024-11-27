@@ -1,0 +1,2 @@
+CREATE DATABASE dsrp_apuestas_deportivas;
+GO
