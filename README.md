@@ -15,4 +15,5 @@ Requisitos del Sistema
 
 **Modelo Lógico**
 
-![image](https://github.com/user-attachments/assets/43328392-2a0a-4da4-99c1-dbb9398bb105)
+![modelo_logico](https://github.com/user-attachments/assets/ddaf45b6-0971-4b60-9752-777d4b606904)
+
