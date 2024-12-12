@@ -7,7 +7,9 @@ Requisitos del Sistema
 -	Eventos Deportivos: el sistema debe gestionar diferentes tipos de eventos deportivos.
 -	Partidos: cada evento deportivo tiene múltiples partidos.
 -	Apuestas: los usuarios pueden realizar diferentes tipos de apuestas en cada partido.
+-	Tipos de apuestas: las posibles apuestas que pueden realizar los jugadores.
 -	Transacciones: el sistema debe registrar todas las transacciones de los usuarios relacionados con las apuestas.
+-	Tipos de transacciones: los tipos de transacciones que pueden hacer los usuarios.
 
 **Diagrama E/R**
 
@@ -15,5 +17,6 @@ Requisitos del Sistema
 
 **Modelo Lógico**
 
-![modelo_logico](https://github.com/user-attachments/assets/ddaf45b6-0971-4b60-9752-777d4b606904)
+![modelo_logico](https://github.com/user-attachments/assets/4eac693c-3a87-4b6e-8f43-9f38756170e3)
+
 
