@@ -19,4 +19,6 @@ Requisitos del Sistema
 
 ![modelo_logico](https://github.com/user-attachments/assets/4eac693c-3a87-4b6e-8f43-9f38756170e3)
 
+**Diagrama SQL SERVER**
 
+![diagrama_apuest_dep](https://github.com/user-attachments/assets/c5227756-79cb-42fb-bfd4-25c27c7ed540)
