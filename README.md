@@ -13,7 +13,7 @@ Requisitos del Sistema
 
 **Diagrama E/R**
 
-![image](https://github.com/user-attachments/assets/9ec9d2c7-6f37-413f-a587-3ff0179d1c33)
+![image](https://github.com/user-attachments/assets/309d8508-26f5-43a5-b0a9-fb9109a81279)
 
 **Modelo Lógico**
 
