@@ -74,6 +74,7 @@ LEFT JOIN (SELECT id_usuario, SUM(monto_transaccion) AS monto_transaccion
 		   GROUP BY id_usuario) t2 ON t2.id_usuario = u.id
 GROUP BY u.id, u.email, u.nombre, u.apellido_paterno, u.apellido_materno, t2.monto_transaccion;
 GO
+SELECT * FROM [dbo].VW_JL_resumen_usuarios;
 /*
 Vista de historial de apuestas:
 
@@ -85,7 +86,7 @@ Cantidad apostada
 Cuota de la apuesta
 Fecha de la apuesta
 */
-CREATE VIEW JW_JL_historial_apuestas
+CREATE VIEW VW_JL_historial_apuestas
 AS
 SELECT u.id, 
 	   CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) AS nombre_usuario,
@@ -102,6 +103,29 @@ LEFT JOIN partido p ON p.id = a.id_partido
 LEFT JOIN evento_deportivo ed ON ed.id = p.id_evento
 WHERE t.fecha_transaccion > DATEADD(MONTH, -1, GETDATE()) AND id_tipo_transaccion = 3;
 GO
+SELECT * FROM [dbo].VW_JL_historial_apuestas;
+/*
+Vista de apuestas pendientes:
+
+Crea una vista vw_apuestas_pendientes que liste todas las apuestas que aún no han sido resueltas.
+Muestra el nombre del usuario, el nombre del evento, el monto apostado y la fecha de la apuesta.
+*/
+CREATE VIEW VW_JL_apuestas_pendientes
+AS
+SELECT CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) AS nombre_cliente,
+	   ed.nombre_evento,
+	   p.equipo_local,
+	   p.equipo_visitante,
+	   t.monto_transaccion,
+	   t.fecha_transaccion
+FROM apuestas a
+INNER JOIN transaccion t ON t.id = a.id_transaccion AND t.id_tipo_transaccion = 3
+INNER JOIN usuarios u ON u.id = t.id_usuario
+INNER JOIN partido p ON p.id = a.id_partido
+INNER JOIN evento_deportivo ed ON ed.id = p.id_evento
+WHERE estado_apuesta != 'Ganada' AND estado_apuesta != 'Perdida';
+GO
+SELECT * FROM [dbo].VW_JL_apuestas_pendientes
 /*
 Procedimiento almacenado de registrar una nueva apuesta:
 
@@ -117,22 +141,18 @@ Valida que:
 El partido esté abierto.
 El usuario tenga saldo suficiente (suponiendo que haya una tabla de saldos de usuarios).
 */
-SELECT * FROM apuestas;
-SELECT * FROM transaccion;
-
 CREATE PROCEDURE SP_JL_registrar_apuesta
-	@id_usuario INT,
-	@id_partido INT,
-	@monto_apostado MONEY,
-	@id_tipo_apuesta INT,
-	@resultado_apostado VARCHAR(255),
+	@id_usuario INT, 
+	@id_partido INT, 
+	@monto_apostado MONEY, 
+	@id_tipo_apuesta INT, 
+	@resultado_apostado VARCHAR(255), 
 	@cuota FLOAT
 AS
 	SET NOCOUNT ON;
-	
 BEGIN 
-	BEGIN TRANSACTION;
 
+	BEGIN TRANSACTION;
 	BEGIN TRY
 		--Validación del usuario
 		IF NOT EXISTS (SELECT 1 FROM usuarios WHERE id = @id_usuario) 
@@ -140,7 +160,6 @@ BEGIN
 			RAISERROR('El usuario no existe', 16, 1);
 			RETURN;
 		END
-
 		--Validación del partido
 		IF NOT EXISTS (SELECT 1 FROM partido WHERE id = @id_partido)
 		BEGIN
@@ -152,7 +171,6 @@ BEGIN
 			RAISERROR('El partido no está disponible', 16, 1);
 			RETURN;
 		END;
-
 		--Validación del monto
 		IF @monto_apostado > (SELECT saldo FROM usuarios WHERE id = @id_usuario)
 		BEGIN
@@ -168,7 +186,6 @@ BEGIN
 		--Insertamos la transaccion
 		INSERT INTO [dbo].[transaccion] ([id_usuario], [id_tipo_transaccion], [monto_transaccion], [fecha_transaccion])
 		VALUES (@id_usuario, 3, @monto_apostado, GETDATE());
-
 		--Insertamos la apuesta
 		INSERT INTO [dbo].[apuestas] ([id_partido], [id_transaccion], [id_tipo_apuesta], [resultado_apostado], [cuota], [estado_apuesta])
 		VALUES (@id_partido, SCOPE_IDENTITY(), @id_tipo_apuesta, @resultado_apostado, @cuota, 'En curso');
@@ -184,17 +201,14 @@ BEGIN
 	BEGIN CATCH
         -- Captura de errores y deshacer la transacción
         ROLLBACK TRANSACTION;
-
         -- Obtener información del error
         DECLARE @ErrorMessage NVARCHAR(4000);
         DECLARE @ErrorSeverity INT;
         DECLARE @ErrorState INT;
-
         SELECT 
             @ErrorMessage = ERROR_MESSAGE(), 
             @ErrorSeverity = ERROR_SEVERITY(), 
             @ErrorState = ERROR_STATE();
-
         -- Lanza el error capturado
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
@@ -213,14 +227,14 @@ Estado del partido
 Este procedimiento debe cambiar el estado de abierto a cerrado o a finalizado.
 */
 CREATE PROCEDURE SP_JL_actualizar_partido
-	@id_partido INT,
-	@marcador_local INT,
-	@marcador_visitante INT,
+	@id_partido INT, 
+	@marcador_local INT, 
+	@marcador_visitante INT, 
 	@estado_partido VARCHAR(100)
 AS
 	SET NOCOUNT ON;
-
 BEGIN
+
 	BEGIN TRANSACTION;
 
 	BEGIN TRY
@@ -235,14 +249,12 @@ BEGIN
 			RAISERROR('El partido ya ha finalizado', 16, 1);
 			RETURN;
 		END;
-
 		--Validación de los marcadores
 		IF @marcador_local < 0 OR @marcador_visitante <0 
 		BEGIN
 			RAISERROR('Los marcadores deben ser mayores a 0', 16, 1);
 			RETURN;
 		END
-
 		--Validación del estado del partido
 		IF @estado_partido NOT IN('Abierto', 'Cerrado', 'Finalizado')
 		BEGIN
@@ -258,7 +270,7 @@ BEGIN
 		SET marcador_local = @marcador_local,
 			marcador_visitante = @marcador_visitante,
 			estado_partido = @estado_partido
-		WHERE id = @id_partido			
+		WHERE id = @id_partido;
 
 		--Confirmamos la transacción
 		COMMIT TRANSACTION;
@@ -267,17 +279,14 @@ BEGIN
 	BEGIN CATCH
         -- Captura de errores y deshacer la transacción
         ROLLBACK TRANSACTION;
-
         -- Obtener información del error
         DECLARE @ErrorMessage NVARCHAR(4000);
         DECLARE @ErrorSeverity INT;
         DECLARE @ErrorState INT;
-
         SELECT 
             @ErrorMessage = ERROR_MESSAGE(), 
             @ErrorSeverity = ERROR_SEVERITY(), 
             @ErrorState = ERROR_STATE();
-
         -- Lanza el error capturado
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
@@ -295,10 +304,8 @@ CREATE PROCEDURE SP_JL_reporte_ganacias
 	@id_evento_deportivo INT
 AS
 	SET NOCOUNT ON;
-
 BEGIN
 	BEGIN TRANSACTION;
-
 	BEGIN TRY
 		--Validación del partido
 		IF NOT EXISTS (SELECT 1 FROM evento_deportivo WHERE id = @id_evento_deportivo)
@@ -328,25 +335,20 @@ BEGIN
 						   GROUP BY ed.id) a2 ON a2.id = ed.id 
 				GROUP BY ed.id, ed.nombre_evento, ed.deporte, total_ganancias_casa_apuestas) AS ted
 		WHERE ted.id = @id_evento_deportivo;
-
 		--Confirmamos la transacción
 		COMMIT TRANSACTION;
 	END TRY
-
 	BEGIN CATCH
         -- Captura de errores y deshacer la transacción
         ROLLBACK TRANSACTION;
-
         -- Obtener información del error
         DECLARE @ErrorMessage NVARCHAR(4000);
         DECLARE @ErrorSeverity INT;
         DECLARE @ErrorState INT;
-
         SELECT 
             @ErrorMessage = ERROR_MESSAGE(), 
             @ErrorSeverity = ERROR_SEVERITY(), 
             @ErrorState = ERROR_STATE();
-
         -- Lanza el error capturado
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
@@ -361,7 +363,7 @@ Crea una función fn_verificar_saldo que reciba el ID de usuario y el monto a apo
 Devuelve 1 si el usuario tiene saldo suficiente y 0 en caso contrario.
 */
 CREATE FUNCTION FN_JL_verificar_saldo(@id_usuario INT,
-									 @monto_apostado MONEY)
+									  @monto_apostado MONEY)
 RETURNS TABLE
 AS
 RETURN(
@@ -375,3 +377,52 @@ RETURN(
 		);
 
 SELECT saldo_suficiente FROM FN_JL_verificar_saldo(5, 5000.00);
+/*
+Consulta para obtener los usuarios con mayor saldo:
+
+Crea una consulta para mostrar el TOP 5 usuarios con el saldo más alto.
+Los campos que se deben mostrar son:
+Nombre completo (usuarios.nombre_completo).
+Saldo actual (usuarios.saldo).
+La consulta debe ordenarse de forma descendente por el saldo.
+*/
+SELECT TOP 5
+	   u.id,
+	   CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) AS nombre_usuario,
+	   saldo
+FROM usuarios u
+ORDER BY saldo DESC;
+/*
+Función para calcular la efectividad de un usuario:
+
+Crea una función llamada fn_efectividad_usuario que reciba el ID del usuario como parámetro.
+La función debe devolver un porcentaje de efectividad de ese usuario.
+Si el usuario no ha realizado apuestas, la función debe devolver 0%.
+*/
+CREATE FUNCTION FN_JL_efectividad_usuario(@id_usuario INT)
+RETURNS TABLE
+AS
+RETURN(
+	SELECT apt_gan.id,
+		   CASE WHEN apt_gan.cantidad_apuestas_realizadas = 0 THEN 0.0
+				ELSE (CAST(APT_gan.cantidad_apuestas_ganadas AS FLOAT)/CAST(apt_gan.cantidad_apuestas_realizadas AS FLOAT)) * 100
+		   END AS 'efectividad'
+	FROM(SELECT u.id, 
+			    CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) AS nombre_usuario,
+			    COALESCE(COUNT(CASE
+									WHEN t.id_tipo_transaccion = 3 THEN t.id_usuario
+							   END), 0) AS cantidad_apuestas_realizadas,
+			    COALESCE(COUNT(CASE
+									WHEN t.id_tipo_transaccion = 4 THEN t.id_usuario
+				  			   END), 0) AS cantidad_apuestas_ganadas,
+			    COALESCE(t2.monto_transaccion, 0) AS ganancia_total
+		 FROM usuarios u
+		 LEFT JOIN transaccion t ON u.id = t.id_usuario AND t.id_tipo_transaccion IN (3, 4)
+		 LEFT JOIN apuestas a ON a.id_transaccion = t.id
+		 LEFT JOIN (SELECT id_usuario, SUM(monto_transaccion) AS monto_transaccion 
+				    FROM transaccion WHERE id_tipo_transaccion = 4
+				    GROUP BY id_usuario) t2 ON t2.id_usuario = u.id
+		 GROUP BY u.id, u.email, u.nombre, u.apellido_paterno, u.apellido_materno, t2.monto_transaccion) AS apt_gan
+	WHERE apt_gan.id = @id_usuario);
+
+SELECT efectividad AS 'efectividad_(%)' FROM FN_JL_efectividad_usuario(24);
